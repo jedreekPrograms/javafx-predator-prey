@@ -45,6 +45,25 @@ public final class SimulationBoard {
     public synchronized boolean isPaused(int id) { return animal(id).paused; }
     public boolean contains(Position p) { return p.x() >= 0 && p.y() >= 0 && p.x() < width && p.y() < height; }
 
+    public synchronized StepResult stepHare(int id, RandomGenerator random) {
+        Animal hare = animal(id);
+        if (hare.species != Species.HARE) throw new IllegalArgumentException("Expected a hare");
+        if (!hare.alive) return StepResult.FINISHED;
+        if (hare.paused) return StepResult.WAITING;
+        Animal wolf = animals.stream().filter(a -> a.species == Species.WOLF).findFirst().orElseThrow();
+        List<Position> best = new ArrayList<>();
+        long distance = -1;
+        for (Position next : neighbors(hare.position)) {
+            if (occupant(next) != null) continue;
+            long candidate = next.squaredDistance(wolf.position);
+            if (candidate > distance) { best.clear(); distance = candidate; }
+            if (candidate == distance) best.add(next);
+        }
+        if (best.isEmpty()) return StepResult.WAITING;
+        hare.position = best.get(random.nextInt(best.size()));
+        return StepResult.MOVED;
+    }
+
     private Animal animal(int id) {
         if (id < 0 || id >= animals.size()) throw new IllegalArgumentException("Unknown animal");
         return animals.get(id);
