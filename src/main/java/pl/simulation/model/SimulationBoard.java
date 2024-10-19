@@ -64,6 +64,31 @@ public final class SimulationBoard {
         return StepResult.MOVED;
     }
 
+    public synchronized StepResult stepWolf(int id, RandomGenerator random) {
+        Animal wolf = animal(id);
+        if (wolf.species != Species.WOLF) throw new IllegalArgumentException("Expected the wolf");
+        List<Animal> living = animals.stream().filter(a -> a.alive && a.species == Species.HARE).toList();
+        if (living.isEmpty()) return StepResult.FINISHED;
+        if (wolf.paused) return StepResult.WAITING;
+        List<Animal> targets = living.stream().filter(a -> !a.paused).toList();
+        if (targets.isEmpty()) return StepResult.WAITING;
+        List<Position> best = new ArrayList<>();
+        long distance = Long.MAX_VALUE;
+        for (Position next : neighbors(wolf.position)) {
+            Animal occupied = occupant(next);
+            if (occupied != null && (occupied.species == Species.WOLF || occupied.paused)) continue;
+            long candidate = targets.stream().mapToLong(a -> next.squaredDistance(a.position)).min().orElseThrow();
+            if (candidate < distance) { best.clear(); distance = candidate; }
+            if (candidate == distance) best.add(next);
+        }
+        if (best.isEmpty()) return StepResult.WAITING;
+        Position next = best.get(random.nextInt(best.size()));
+        Animal caught = occupant(next);
+        if (caught != null) caught.alive = false;
+        wolf.position = next;
+        return caught == null ? StepResult.MOVED : StepResult.CAUGHT;
+    }
+
     private Animal animal(int id) {
         if (id < 0 || id >= animals.size()) throw new IllegalArgumentException("Unknown animal");
         return animals.get(id);
