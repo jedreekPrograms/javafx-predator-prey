@@ -34,6 +34,10 @@ public final class SimulationEngine implements AutoCloseable {
         var random = ThreadLocalRandom.current();
         try {
             while (running && board.isAlive(animal.id())) {
+                synchronized (control) {
+                    while (running && board.isAlive(animal.id()) && board.isPaused(animal.id())) control.wait();
+                }
+                if (!running || !board.isAlive(animal.id())) break;
                 Thread.sleep(delay + random.nextInt(delay));
                 if (!running) break;
                 StepResult result = animal.species() == Species.WOLF
@@ -42,6 +46,11 @@ public final class SimulationEngine implements AutoCloseable {
                 if (result == StepResult.CAUGHT) Thread.sleep(captureDelay);
             }
         } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+    }
+
+    public void togglePauseAt(Position position) {
+        board.togglePauseAt(position);
+        synchronized (control) { control.notifyAll(); }
     }
 
     public synchronized boolean hasLiveWorkers() { return workers.stream().anyMatch(Thread::isAlive); }

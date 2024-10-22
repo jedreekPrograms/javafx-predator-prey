@@ -89,6 +89,13 @@ public final class SimulationBoard {
         return caught == null ? StepResult.MOVED : StepResult.CAUGHT;
     }
 
+    public synchronized boolean togglePauseAt(Position position) {
+        Animal selected = occupant(position);
+        if (selected == null) return false;
+        selected.paused = !selected.paused;
+        return true;
+    }
+
     private Animal animal(int id) {
         if (id < 0 || id >= animals.size()) throw new IllegalArgumentException("Unknown animal");
         return animals.get(id);
