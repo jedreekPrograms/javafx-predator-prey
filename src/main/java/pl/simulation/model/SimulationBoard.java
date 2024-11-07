@@ -8,6 +8,7 @@ import java.util.random.RandomGenerator;
 /** All board mutations and occupancy decisions use the same monitor. */
 public final class SimulationBoard {
     private final int width, height;
+    private final Animal[][] occupied;
     private final List<Animal> animals = new ArrayList<>();
 
     private static final class Animal {
@@ -25,6 +26,7 @@ public final class SimulationBoard {
         if (width < 1 || width > 100 || height < 1 || height > 100)
             throw new IllegalArgumentException("Board dimensions must be between 1 and 100");
         this.width = width; this.height = height;
+        occupied = new Animal[width][height];
     }
 
     public synchronized int spawn(Species species, Position position) {
@@ -33,7 +35,9 @@ public final class SimulationBoard {
         if (species == Species.WOLF && animals.stream().anyMatch(a -> a.species == Species.WOLF))
             throw new IllegalArgumentException("The simulation has one wolf");
         int id = animals.size();
-        animals.add(new Animal(id, species, position));
+        Animal added = new Animal(id, species, position);
+        animals.add(added);
+        occupied[position.x()][position.y()] = added;
         return id;
     }
 
@@ -60,7 +64,9 @@ public final class SimulationBoard {
             if (candidate == distance) best.add(next);
         }
         if (best.isEmpty()) return StepResult.WAITING;
+        occupied[hare.position.x()][hare.position.y()] = null;
         hare.position = best.get(random.nextInt(best.size()));
+        occupied[hare.position.x()][hare.position.y()] = hare;
         return StepResult.MOVED;
     }
 
@@ -85,7 +91,9 @@ public final class SimulationBoard {
         Position next = best.get(random.nextInt(best.size()));
         Animal caught = occupant(next);
         if (caught != null) caught.alive = false;
+        occupied[wolf.position.x()][wolf.position.y()] = null;
         wolf.position = next;
+        occupied[next.x()][next.y()] = wolf;
         return caught == null ? StepResult.MOVED : StepResult.CAUGHT;
     }
 
@@ -102,7 +110,7 @@ public final class SimulationBoard {
     }
 
     private Animal occupant(Position p) {
-        return animals.stream().filter(a -> a.alive && a.position.equals(p)).findFirst().orElse(null);
+        return contains(p) ? occupied[p.x()][p.y()] : null;
     }
 
     private List<Position> neighbors(Position p) {

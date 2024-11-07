@@ -35,7 +35,7 @@ public final class SimulationEngine implements AutoCloseable {
         try {
             while (running && board.isAlive(animal.id())) {
                 synchronized (control) {
-                    while (running && board.isAlive(animal.id()) && board.isPaused(animal.id())) control.wait();
+                    while (running && board.isAlive(animal.id()) && board.isPaused(animal.id())) control.wait(100);
                 }
                 if (!running || !board.isAlive(animal.id())) break;
                 Thread.sleep(delay + random.nextInt(delay));
@@ -43,7 +43,10 @@ public final class SimulationEngine implements AutoCloseable {
                 StepResult result = animal.species() == Species.WOLF
                         ? board.stepWolf(animal.id(), random) : board.stepHare(animal.id(), random);
                 if (result == StepResult.FINISHED) break;
-                if (result == StepResult.CAUGHT) Thread.sleep(captureDelay);
+                if (result == StepResult.CAUGHT) {
+                    synchronized (control) { control.notifyAll(); }
+                    Thread.sleep(captureDelay);
+                }
             }
         } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
     }
